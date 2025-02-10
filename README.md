@@ -25,3 +25,6 @@ The version follows Semantic Versioning `1.X.Y`:
 
 To utilize the `.ascv` format, refer to **ASCV File Format Specifications v1.1.0** available in this repository.
 This document will guide you through implementing and utilizing ASCIIVideo files effectively, ensuring compliance with current standards of `.ascv` format encoding [source
+
+## License
+The specification PDF is provided under the BSD 3-Clause license.
