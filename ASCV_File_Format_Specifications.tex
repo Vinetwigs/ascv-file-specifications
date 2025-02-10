@@ -1,0 +1,198 @@
+\documentclass{article}
+
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage[backend=biber, sorting=none]{biblatex}
+\addbibresource{biblio.bib}
+
+\begin{document}
+\begin{titlepage}
+   \begin{center}
+       \vspace*{1cm}
+       \textbf{Specification of ASCIIVideo (.ascv) File Format} \\
+        \textit{A file format to encode ASCII art sequences} \\
+        \vspace{0.5cm}
+       \textbf{v1.1.0} \\
+        \vspace{2cm}
+       % \textbf{Vinetwigs}
+       \vfill
+   \end{center}
+\end{titlepage}
+
+\begin{abstract}
+The \texttt{ASCIIVideo (.ascv)} file format is proposed as an efficient method for encoding ASCII art sequences into a video format. This document outlines the specification of the \texttt{.ascv} format, including its structure, compression techniques, and encoding methods. The format is designed to offer high space efficiency while maintaining flexibility and extensibility across various systems, especially those with constrained resources. This document is intended for developers and implementers of software tools that work with the \texttt{.ascv} format.
+\end{abstract}
+\newpage
+
+\section{Introduction}
+
+The \texttt{ASCIIVideo (.ascv)} file format provides an efficient mechanism for representing sequences of ASCII art \cite{enwiki:1271222132} in video form. It is intended for applications that require high compression of graphical data, particularly for devices with limited storage capacity. The \texttt{.ascv} format uses several techniques to minimize storage requirements while preserving the integrity of the original video content.
+
+This document provides a detailed specification of the \texttt{.ascv} format, including its structure, supported compression methods, and encoding techniques. Specifically, the format incorporates \textbf{differential frame compression} \cite{Frame_Differencing} and utilizes a \textbf{frame indexing system} \cite{enwiki:1242251239} to enhance efficiency. These design decisions aim to reduce the file size of the video content, facilitating its use in environments with stringent storage constraints.
+
+The specification is intended to assist developers in implementing parsers and encoders/decoders for the \texttt{.ascv} format, and it ensures backward compatibility while allowing for future extensibility.
+
+\section{File Structure}
+
+The \texttt{.ascv} file consists of two primary sections:
+
+\begin{itemize}
+    \item \textbf{Header}: Contains essential metadata defining video properties such as dimensions, frame rate, and compression settings.
+    \item \textbf{Frame Data}: Contains the actual video frames encoded in a compact, space-efficient manner.
+\end{itemize}
+
+\subsection{Header Structure}
+
+The header is fixed in size, occupying \textbf{32 bytes} in total. It defines the core properties of the video, such as its dimensions, frame rate, and the total number of frames. Additionally, it contains flags for compression and encoding options. The header consists of the following fields:
+
+\begin{longtable}{|l|l|l|l|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Size} & \textbf{Description} \\
+\hline
+\endfirsthead
+\hline
+MAGIC & String & 4 bytes & Magic number identifying the file (e.g., `AAVF'') \\
+VERSION & Integer & 1 byte & Version number of the \texttt{.ascv} format \\
+WIDTH & Integer & 2 bytes & Width of the video in characters \\
+HEIGHT & Integer & 2 bytes & Height of the video in characters \\
+FPS & Integer & 1 byte & Frames per second (FPS) \\
+FRAMES & Integer & 4 bytes & Number of frames in the video \\
+COMPRESSION & Integer & 1 byte & Compression flag (0 = disabled, 1 = enabled) \\
+CHARSET & Integer & 1 byte & Character set identifier (0 = Standard ASCII) \\
+RESERVED & Reserved & 16 bytes & Reserved space for future extensions \\
+INDEX OFFSET & Integer & 8 bytes & Byte offset to the frame index within the file \\
+\hline
+\end{longtable}
+
+The header ensures that the essential properties of the video are clearly defined, facilitating efficient parsing and processing by software implementations.
+
+\subsection{Frame Data Structure}
+
+Following the header, the frame data section contains the actual video frames. Each frame is encoded with two primary components:
+
+\begin{itemize}
+    \item \textbf{Frame Size}: The total number of bytes used to store the frame data, encoded as a 4-byte integer.
+    \item \textbf{Frame Content}: The actual frame data, which consists of ASCII characters. The content may be optionally compressed using differential compression between consecutive frames.
+\end{itemize}
+
+\subsection{Compression Techniques}
+
+The \texttt{.ascv} format supports \textbf{Differential Frame Compression} \cite{Frame_Differencing} when the compression flag (COMP) is set to 1. This compression method minimizes redundancy by storing only the differences between consecutive frames. This is particularly useful for video sequences where many frames are similar to each other, allowing for significant storage savings.
+
+\begin{itemize}
+    \item \textbf{Differential Compression}: The differences between a frame and the previous frame are stored, significantly reducing the amount of data required for similar frames.
+\end{itemize}
+
+For example, for two frames, Frame 0 and Frame 1:
+\begin{itemize}
+    \item \textbf{Frame 0} (original content): ``AAAABBBCCDDDD``
+    \item \textbf{Frame 1 (diff from Frame 0)}: ``XXXXYYYYZZZZ``
+\end{itemize}
+
+Only the changed sections (``XXXXYYYYZZZZ'') are stored, reducing the overall file size compared to storing both frames in full.
+
+\subsection{Frame Indexing System}
+
+The \texttt{.ascv} format includes an \textbf{Index Offset} \cite{enwiki:1242251239} field within the header. This field points to an index that lists the byte offsets of each frame within the file. This indexing mechanism allows for efficient random access to specific frames, which is beneficial for video playback and frame extraction.
+
+The frame index is located after the video data and contains entries that specify the starting byte offset for each frame. The index facilitates efficient parsing and navigation within the file, particularly for applications requiring non-linear access to frame data.
+
+\subsection{Compression and Decompression with zlib}
+
+The \texttt{ASCIIVideo (.ascv)} format employs \texttt{DEFLATE} \cite{rfc1951} compression to further optimize the storage of video frame data. When the \texttt{COMP} flag in the header is set to 1, the frame data is compressed using the \texttt{DEFLATE} compression algorithm. This method provides an effective means of reducing the size of the video frames, particularly for longer sequences of repetitive data.
+
+\texttt{DEFLATE} algorithm offers both lossless compression and fast decompression, making it ideal for video formats where integrity and speed are crucial. The compression process involves the following steps:
+
+\begin{itemize}
+    \item \textbf{Compression}: The frame data is first serialized into a byte stream and then passed through the \texttt{DEFLATE} compression function to generate a compressed byte sequence.
+    \item \textbf{Decompression}: To retrieve the original frame data, the compressed byte sequence is passed through the \texttt{DEFLAET} decompression function, which restores the data to its original form for rendering or processing.
+\end{itemize}
+
+This compression process significantly reduces the storage requirements of the video frames, without compromising on data integrity. The \texttt{.ascv} format allows for easy integration of \texttt{DEFLATE} compression and decompression into existing software systems, providing flexibility for both encoding and playback.
+
+\section{Versioning}
+
+The versioning scheme used for the \texttt{.ascv} file format follows the Semantic Versioning convention with the format \texttt{1.X.Y}, where:
+
+\begin{itemize}
+    \item \texttt{X} (major version) is incremented when backward-incompatible changes are introduced, such as changes to the file structure or compression algorithms.
+    \item \texttt{Y} (minor version) is incremented for non-breaking changes, such as new features, optimizations, or clarifications to the specification.
+\end{itemize}
+
+The initial release of the \texttt{.ascv} format is \texttt{1.0.0}, with subsequent updates expected to follow the pattern \texttt{1.X.Y}.
+
+\section{Example File}
+
+This section provides a practical example of a simple \texttt{.ascv} file. The file contains two frames, each with a width of 8 characters and a height of 4 characters. Compression is enabled (COMP = 1).
+
+\subsection{Header (32 bytes)}
+
+\begin{verbatim}
+MAGIC:     AAVF
+VERSION:   1
+WIDTH:     8
+HEIGHT:    4
+FPS:       30
+FRAMES:    2
+COMP:      1
+CHARSET:   0 (Standard ASCII)
+RESERVED:  [reserved space]
+INDEX OFFSET: [index offset]
+\end{verbatim}
+
+\subsection{Frame Data}
+
+\textbf{Frame 0} (original content: ``AAAABBBCCDDDD``):
+
+\begin{itemize}
+    \item \textbf{Frame Size}: 16 bytes
+    \item \textbf{Frame Content (Differential)}: [No differential, as this is the first frame]
+\end{itemize}
+
+\textbf{Frame 1} (original content: ``XXXXXXXXYYYYZZZZ``):
+
+\begin{itemize}
+    \item \textbf{Frame Size}: 16 bytes
+    \item \textbf{Frame Content (Differential)}: [Difference with Frame 0]
+\end{itemize}
+
+\subsection{Complete File Example}
+
+\begin{verbatim}
+[AAVF][1][08][04][30][2][1][0][RESERVED][INDEX OFFSET]
+[16][AAAABBBCCDDDD]
+[16][XXXXXXXXYYYYZZZZ]
+\end{verbatim}
+
+\section{Compatibility and Requirements}
+
+The \texttt{ASCIIVideo (.ascv)} format is lightweight and optimized for environments with limited storage and processing capabilities. It requires the following:
+
+\begin{itemize}
+    \item \textbf{Hardware}: Any device capable of handling basic ASCII character sets and binary file formats.
+    \item \textbf{Software}: A parser capable of handling differential frame compression and binary file formats.
+    \item \textbf{Operating System}: The format is cross-platform, with no specific OS requirements.
+\end{itemize}
+
+\subsection{Extensibility and Future Features}
+
+The \texttt{.ascv} format is designed to be extensible, allowing for future features and improvements without breaking backward compatibility. The reserved bytes in the header provide a buffer for future field additions. These reserved spaces can be utilized in future versions of the format to introduce new features such as:
+\begin{itemize}
+    \item Support for additional character sets or encoding schemes.
+    \item Advanced compression techniques or hybrid algorithms combining differential and global compression.
+    \item Storage of additional metadata.
+\end{itemize}
+
+
+\section{Conclusion}
+
+The \texttt{ASCIIVideo (.ascv)} file format provides a highly efficient method for encoding ASCII art sequences in video form. By utilizing differential frame compression and a frame indexing system, it achieves significant reductions in file size while maintaining a flexible and extensible structure. This format is ideal for use in applications where storage and bandwidth are constrained, such as on embedded systems or low-bandwidth networks.
+
+This document serves as a comprehensive guide to the \texttt{.ascv} format, offering developers a clear understanding of its structure, capabilities, and future extensibility. The \texttt{.ascv} format is designed to evolve with the needs of its users.
+
+\clearpage
+\printbibliography[
+title={References}
+]
+
+\end{document}
